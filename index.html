@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 52 - Legend Days Of Christopher Robin</title>
+    <!-- Tailwind CSS for modern responsive UI and HUD layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Press Start 2P for retro storybook feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Cinzel:wght@600;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121214;
+            color: #f3f4f6;
+            overflow: hidden;
+            user-select: none;
+        }
+        .storybook-title {
+            font-family: 'Cinzel', serif;
+        }
+        /* Custom scrollbars for inventory/quest logs */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d97706;
+            border-radius: 3px;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between relative">
+
+    <!-- Top HUD Bar -->
+    <header class="w-full bg-stone-900/90 border-b border-amber-600/40 px-4 py-2 flex justify-between items-center z-20 shadow-lg backdrop-blur-md">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-amber-700 flex items-center justify-center font-bold text-lg border-2 border-amber-400 storybook-title text-amber-100" id="hud-level">L1</div>
+            <div>
+                <h1 class="storybook-title text-amber-400 font-bold text-sm md:text-base tracking-wide">Chapter 52: Legend Days Of Christopher Robin</h1>
+                <div class="flex items-center space-x-2 text-xs text-stone-300">
+                    <span id="hud-class" class="px-2 py-0.5 bg-amber-900/60 rounded text-amber-300 border border-amber-600/50">Novice Youth</span>
+                    <span id="hud-location" class="text-emerald-400 font-semibold">📍 100 Acre Wood (Past)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bars: HP, Pride/Maturity, Karma -->
+        <div class="flex items-center space-x-4 md:space-x-6">
+            <!-- HP Bar -->
+            <div class="flex flex-col text-xs">
+                <div class="flex justify-between font-semibold mb-0.5 text-red-300">
+                    <span>HP</span>
+                    <span id="hud-hp-text">100/100</span>
+                </div>
+                <div class="w-24 md:w-36 h-3 bg-stone-800 rounded-full overflow-hidden border border-red-500/40">
+                    <div id="hud-hp-bar" class="h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-300" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Maturity / Pride Meter -->
+            <div class="flex flex-col text-xs">
+                <div class="flex justify-between font-semibold mb-0.5 text-amber-300">
+                    <span>Pride/Maturity</span>
+                    <span id="hud-pride-text">50%</span>
+                </div>
+                <div class="w-24 md:w-36 h-3 bg-stone-800 rounded-full overflow-hidden border border-amber-500/40">
+                    <div id="hud-pride-bar" class="h-full bg-gradient-to-r from-amber-600 to-yellow-500 transition-all duration-300" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <!-- Karma Bar -->
+            <div class="hidden md:flex flex-col text-xs">
+                <div class="flex justify-between font-semibold mb-0.5 text-blue-300">
+                    <span>Karma (Loyalty)</span>
+                    <span id="hud-karma-text">100</span>
+                </div>
+                <div class="w-28 h-3 bg-stone-800 rounded-full overflow-hidden border border-blue-500/40">
+                    <div id="hud-karma-bar" class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-300" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Menu Buttons -->
+            <div class="flex space-x-1 md:space-x-2">
+                <button onclick="toggleModal('inventory-modal')" class="px-2 md:px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-600/40 rounded text-xs font-semibold shadow transition">🎒 Inventory</button>
+                <button onclick="toggleModal('quest-modal')" class="px-2 md:px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-600/40 rounded text-xs font-semibold shadow transition">📜 Quests</button>
+                <button onclick="toggleModal('skills-modal')" class="px-2 md:px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-600/40 rounded text-xs font-semibold shadow transition">⚡ Skills</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Viewport (Canvas + HUD overlays) -->
+    <main class="flex-1 relative overflow-hidden flex items-center justify-center bg-stone-950">
+        <!-- Canvas for 2.5D/Top-Down World Exploration -->
+        <canvas id="gameCanvas" class="w-full h-full absolute inset-0 cursor-crosshair"></canvas>
+
+        <!-- On-screen Joystick / Touch Controls for Mobile & Accessibility -->
+        <div class="absolute bottom-6 left-6 md:hidden flex flex-col items-center z-10 opacity-75">
+            <div class="flex space-x-8 mb-2">
+                <button ontouchstart="handleTouchMove('up')" onmousedown="handleTouchMove('up')" class="w-12 h-12 bg-stone-800/80 border border-amber-500/50 rounded-full text-amber-300 flex items-center justify-center text-lg active:bg-amber-600">⬆️</button>
+            </div>
+            <div class="flex space-x-16">
+                <button ontouchstart="handleTouchMove('left')" onmousedown="handleTouchMove('left')" class="w-12 h-12 bg-stone-800/80 border border-amber-500/50 rounded-full text-amber-300 flex items-center justify-center text-lg active:bg-amber-600">⬅️</button>
+                <button ontouchstart="handleTouchMove('right')" onmousedown="handleTouchMove('right')" class="w-12 h-12 bg-stone-800/80 border border-amber-500/50 rounded-full text-amber-300 flex items-center justify-center text-lg active:bg-amber-600">➡️</button>
+            </div>
+            <div class="flex space-x-8 mt-2">
+                <button ontouchstart="handleTouchMove('down')" onmousedown="handleTouchMove('down')" class="w-12 h-12 bg-stone-800/80 border border-amber-500/50 rounded-full text-amber-300 flex items-center justify-center text-lg active:bg-amber-600">⬇️</button>
+            </div>
+        </div>
+
+        <!-- Action / Interact Button for Mobile -->
+        <div class="absolute bottom-6 right-6 md:hidden flex flex-col space-y-2 z-10">
+            <button onclick="triggerInteract()" class="w-16 h-16 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold rounded-full shadow-lg border-2 border-amber-300 flex items-center justify-center text-sm active:scale-95 transition">TALK</button>
+        </div>
+
+        <!-- Interactive Dialog Overlay -->
+        <div id="dialog-box" class="absolute bottom-16 left-4 right-4 md:left-24 md:right-24 bg-stone-900/95 border-2 border-amber-500 rounded-xl p-4 md:p-6 shadow-2xl z-30 hidden backdrop-blur-md">
+            <div class="flex items-start space-x-4">
+                <div id="dialog-avatar" class="w-12 h-12 rounded-full bg-amber-700 flex-shrink-0 flex items-center justify-center text-xl border border-amber-400 font-bold">🐻</div>
+                <div class="flex-1">
+                    <h3 id="dialog-speaker" class="text-amber-400 font-bold text-base storyboard-title">Winnie the Pooh</h3>
+                    <p id="dialog-text" class="text-stone-200 text-sm mt-1 leading-relaxed">You are a liar! You must not become our friends since the start time...</p>
+                    <div id="dialog-choices" class="mt-4 flex flex-wrap gap-2">
+                        <!-- Dynamically populated choices -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Notification Toast -->
+        <div id="notification-toast" class="absolute top-6 left-1/2 transform -translate-x-1/2 bg-amber-600/90 text-stone-950 font-bold px-6 py-2 rounded-full shadow-xl z-40 transition-all duration-300 opacity-0 pointer-events-none border border-amber-300">
+            Quest Updated: The Farewell!
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Inventory Modal -->
+    <div id="inventory-modal" class="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-stone-900 border-2 border-amber-600/60 w-11/12 md:w-2/3 lg:w-1/2 rounded-2xl p-6 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-stone-800 pb-3 mb-4">
+                <h2 class="storybook-title text-amber-400 text-xl font-bold">🎒 Christopher's Inventory</h2>
+                <button onclick="toggleModal('inventory-modal')" class="text-stone-400 hover:text-white font-bold text-lg">✕</button>
+            </div>
+            <div id="inventory-list" class="grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto flex-1 pr-2">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Quest Log Modal -->
+    <div id="quest-modal" class="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-stone-900 border-2 border-amber-600/60 w-11/12 md:w-2/3 lg:w-1/2 rounded-2xl p-6 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-stone-800 pb-3 mb-4">
+                <h2 class="storybook-title text-amber-400 text-xl font-bold">📜 Chapter 52 Quest Log</h2>
+                <button onclick="toggleModal('quest-modal')" class="text-stone-400 hover:text-white font-bold text-lg">✕</button>
+            </div>
+            <div id="quest-list" class="space-y-4 overflow-y-auto flex-1 pr-2">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Skills & Progression Modal -->
+    <div id="skills-modal" class="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-stone-900 border-2 border-amber-600/60 w-11/12 md:w-2/3 lg:w-1/2 rounded-2xl p-6 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-stone-800 pb-3 mb-4">
+                <h2 class="storybook-title text-amber-400 text-xl font-bold">⚡ Progression & Skill Tree</h2>
+                <button onclick="toggleModal('skills-modal')" class="text-stone-400 hover:text-white font-bold text-lg">✕</button>
+            </div>
+            <div id="skills-list" class="space-y-4 overflow-y-auto flex-1 pr-2">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Selection / Intro Modal on Start -->
+    <div id="class-modal" class="fixed inset-0 bg-stone-950/95 backdrop-blur-md z-50 flex items-center justify-center">
+        <div class="bg-stone-900 border-2 border-amber-500 w-11/12 md:w-3/4 lg:w-2/3 rounded-2xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto text-center">
+            <h1 class="storybook-title text-amber-400 text-2xl md:text-3xl font-bold mb-2">Chapter 52: Bedtime Stories</h1>
+            <p class="text-amber-200/80 text-sm mb-6 italic">“Legend Days Of Christopher Robin - From the creations of Piglet and Winnie The Pooh Bank”</p>
+            
+            <p class="text-stone-300 text-sm md:text-base leading-relaxed mb-6 text-left">
+                Christopher Robin is getting mature and desires independence, leaving behind 20 years of childhood friendship with Winnie the Pooh, Piglet, Eeyore, and Owl. Travel from the 100 Acre Wood to Europe as a Cashier, face workplace bullies, learn the hard way about karma and pride, and return to redeem true friendship!
+            </p>
+
+            <h3 class="storybook-title text-amber-300 font-bold text-lg mb-4">Choose Christopher's Path & Class:</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-left">
+                <div onclick="selectClass('Childhood Adventurer')" class="class-card bg-stone-800 hover:bg-stone-700/80 border-2 border-amber-600/50 hover:border-amber-400 rounded-xl p-4 cursor-pointer transition">
+                    <div class="text-2xl mb-2">🧸</div>
+                    <h4 class="font-bold text-amber-300">Childhood Adventurer</h4>
+                    <p class="text-xs text-stone-400 mt-1">Starts with high nostalgia. Balanced stats, focused on 100 Acre Wood bonds.</p>
+                </div>
+                <div onclick="selectClass('Mature Cashier')" class="class-card bg-stone-800 hover:bg-stone-700/80 border-2 border-amber-600/50 hover:border-amber-400 rounded-xl p-4 cursor-pointer transition">
+                    <div class="text-2xl mb-2">💼</div>
+                    <h4 class="font-bold text-amber-300">Mature Cashier</h4>
+                    <p class="text-xs text-stone-400 mt-1">Starts in Europe. Higher gold/economy management, higher initial pride.</p>
+                </div>
+                <div onclick="selectClass('Redeemed Friend')" class="class-card bg-stone-800 hover:bg-stone-700/80 border-2 border-amber-600/50 hover:border-amber-400 rounded-xl p-4 cursor-pointer transition">
+                    <div class="text-2xl mb-2">❤️</div>
+                    <h4 class="font-bold text-amber-300">Redeemed Friend</h4>
+                    <p class="text-xs text-stone-400 mt-1">Master of apologies and karma restoration. Ultimate true ending seeker.</p>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl shadow-lg border border-amber-300 text-base transition transform hover:scale-105">Begin Chapter 52 Adventure</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State & Core Variables
+        const game = {
+            level: 1,
+            hp: 100,
+            maxHp: 100,
+            pride: 50,
+            karma: 100,
+            className: "Novice Youth",
+            location: "Hundred Acre Wood",
+            worldType: "wood", // 'wood' or 'europe'
+            inventory: [
+                { id: 'toy', name: 'Childhood Toy', icon: '🧸', desc: 'A cherished reminder of the past 20 years.' },
+                { id: 'honey', name: 'Honey Pot', icon: '🍯', desc: 'Sweet honey for hungry friends.' }
+            ],
+            quests: [
+                { id: 'q1', title: 'Part 1: The Farewell to Childhood', desc: 'Confront and break ties with Winnie the Pooh, Piglet, Eeyore, and Owl.', status: 'active' },
+                { id: 'q2', title: 'Part 2: The Europe Cashier Job', desc: 'Travel to Europe, find work, and deal with workplace bullies for 5 years.', status: 'locked' },
+                { id: 'q3', title: 'Part 3: Apology & Reconciliation', desc: 'Return to 100 Acre Wood, confess your sins, and restore true friendship.', status: 'locked' }
+            ],
+            skills: [
+                { id: 's1', name: 'Humble Apology', desc: 'Reduces pride and restores karma with past friends.', unlocked: true, cost: 0 },
+                { id: 's2', name: 'Cashier Efficiency', desc: 'Boosts ledger accuracy and profitability in Europe.', unlocked: false, cost: 50 },
+                { id: 's3', name: 'True Friendship Bond', desc: 'Unlocks the final reconciliation ending and defeats karma spectres.', unlocked: false, cost: 100 }
+            ],
+            playerX: 400,
+            playerY: 300,
+            speed: 4,
+            activeDialog: null
+        };
+
+        // Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // NPCs & Entities in Current World
+        let npcs = [];
+        let itemsOnGround = [];
+        let enemies = [];
+
+        function loadWorld(type) {
+            game.worldType = type;
+            npcs = [];
+            itemsOnGround = [];
+            enemies = [];
+
+            if (type === 'wood') {
+                game.location = "100 Acre Wood (Past)";
+                document.getElementById('hud-location').innerText = "📍 100 Acre Wood";
+                npcs = [
+                    { id: 'pooh', name: 'Winnie the Pooh', emoji: '🐻', x: 200, y: 150, dialog: "You are a liar! You must not become our friends since the first start time. We reject you!" },
+                    { id: 'piglet', name: 'Piglet', emoji: '🐷', x: 600, y: 200, dialog: "Oh dear... why are you leaving us behind after 20 years?" },
+                    { id: 'eeyore', name: 'Eeyore', emoji: '🐴', x: 300, y: 450, dialog: "Nobody cares about old donkeys anyway... go to your Europe business." },
+                    { id: 'owl', name: 'Owl', emoji: '🦉', x: 700, y: 450, dialog: "Wisdom dictates that pride often precedes a severe fall, Christopher." }
+                ];
+                itemsOnGround = [
+                    { id: 'honey1', name: 'Honey Pot', emoji: '🍯', x: 500, y: 300 }
+                ];
+            } else if (type === 'europe') {
+                game.location = "Europe Cashier Shop";
+                document.getElementById('hud-location').innerText = "📍 Europe Shop & Bullies";
+                npcs = [
+                    { id: 'merchant', name: 'Sir & Madam Merchants', emoji: '👔', x: 400, y: 100, dialog: "Welcome to Europe! You are hired as cashier. But beware, you must collaborate with mature peers or face losses." },
+                    { id: 'bully1', name: 'Recent Coworker (Bully)', emoji: '😒', x: 200, y: 400, dialog: "Look at this childish rookie! Let's bully him out of the job!" }
+                ];
+                enemies = [
+                    { id: 'bully_enemy', name: 'Toxic Workplace Bully', emoji: '👺', x: 650, y: 350, hp: 50, maxHp: 50 }
+                ];
+            } else if (type === 'reconciliation') {
+                game.location = "100 Acre Wood (Reconciliation)";
+                document.getElementById('hud-location').innerText = "📍 100 Acre Wood (Reconciled)";
+                npcs = [
+                    { id: 'pooh_happy', name: 'Winnie the Pooh', emoji: '🐻🍯', x: 400, y: 250, dialog: "We forgive you, Christopher! Real friends never betray as well." }
+                ];
+            }
+        }
+
+        // Input Handling
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === 'e' || e.key === 'E') checkInteraction();
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        function handleTouchMove(dir) {
+            if (dir === 'up') game.playerY -= 20;
+            if (dir === 'down') game.playerY += 20;
+            if (dir === 'left') game.playerX -= 20;
+            if (dir === 'right') game.playerX += 20;
+            clampPlayer();
+        }
+
+        function clampPlayer() {
+            game.playerX = Math.max(40, Math.min(canvas.width - 40, game.playerX));
+            game.playerY = Math.max(40, Math.min(canvas.height - 40, game.playerY));
+        }
+
+        function update() {
+            if (keys['w'] || keys['arrowup']) game.playerY -= game.speed;
+            if (keys['s'] || keys['arrowdown']) game.playerY += game.speed;
+            if (keys['a'] || keys['arrowleft']) game.playerX -= game.speed;
+            if (keys['d'] || keys['arrowright']) game.playerX += game.speed;
+            clampPlayer();
+
+            // Check item pickup
+            itemsOnGround.forEach((item, idx) => {
+                const dist = Math.hypot(game.playerX - item.x, game.playerY - item.y);
+                if (dist < 35) {
+                    game.inventory.push({ id: item.id, name: item.name, icon: item.emoji, desc: 'A valuable collected item.' });
+                    showToast(`Collected: ${item.name}!`);
+                    itemsOnGround.splice(idx, 1);
+                    updateInventoryUI();
+                }
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background Grids / Environment
+            if (game.worldType === 'wood') {
+                ctx.fillStyle = '#14381b';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Draw trees decoration
+                ctx.fillStyle = '#1e5631';
+                for (let i = 100; i < canvas.width; i += 200) {
+                    ctx.beginPath();
+                    ctx.arc(i, 100, 40, 0, Math.PI * 2);
+                    ctx.arc(i + 50, 500, 50, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (game.worldType === 'europe') {
+                ctx.fillStyle = '#1c1c24';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Draw cashier shop floor
+                ctx.strokeStyle = '#3b3b4f';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+            } else {
+                ctx.fillStyle = '#0f291e';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Draw Items on Ground
+            itemsOnGround.forEach(item => {
+                ctx.font = '24px sans-serif';
+                ctx.fillText(item.emoji, item.x - 12, item.y + 8);
+            });
+
+            // Draw NPCs
+            npcs.forEach(npc => {
+                ctx.font = '32px sans-serif';
+                ctx.fillText(npc.emoji, npc.x - 16, npc.y + 12);
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = '12px Inter, sans-serif';
+                ctx.fillText(npc.name, npc.x - 30, npc.y - 18);
+            });
+
+            // Draw Enemies
+            enemies.forEach(en => {
+                ctx.font = '32px sans-serif';
+                ctx.fillText(en.emoji, en.x - 16, en.y + 12);
+                ctx.fillStyle = '#f87171';
+                ctx.font = '12px Inter, sans-serif';
+                ctx.fillText(en.name, en.x - 30, en.y - 18);
+            });
+
+            // Draw Player Character Christopher Robin
+            ctx.font = '36px sans-serif';
+            ctx.fillText('🧑‍🦰', game.playerX - 18, game.playerY + 12);
+            ctx.fillStyle = '#60a5fa';
+            ctx.font = 'bold 12px Inter, sans-serif';
+            ctx.fillText('Christopher Robin', game.playerX - 45, game.playerY - 22);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function checkInteraction() {
+            // Check proximity to NPCs
+            npcs.forEach(npc => {
+                const dist = Math.hypot(game.playerX - npc.x, game.playerY - npc.y);
+                if (dist < 60) {
+                    openDialog(npc);
+                }
+            });
+
+            // Check proximity to enemies for combat challenge
+            enemies.forEach(en => {
+                const dist = Math.hypot(game.playerX - en.x, game.playerY - en.y);
+                if (dist < 60) {
+                    triggerCombat(en);
+                }
+            });
+        }
+
+        function triggerInteract() {
+            checkInteraction();
+        }
+
+        function openDialog(npc) {
+            const dialogBox = document.getElementById('dialog-box');
+            document.getElementById('dialog-speaker').innerText = npc.name;
+            document.getElementById('dialog-avatar').innerText = npc.emoji;
+            document.getElementById('dialog-text').innerText = npc.dialog;
+
+            const choicesDiv = document.getElementById('dialog-choices');
+            choicesDiv.innerHTML = '';
+
+            if (npc.id === 'pooh' && game.worldType === 'wood') {
+                choicesDiv.innerHTML = `
+                    <button onclick="resolveQuestPart1('reject')" class="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-semibold">Reject friends & Move to Europe</button>
+                    <button onclick="resolveQuestPart1('stay')" class="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded text-xs font-semibold">Apologize and Stay (Humble Path)</button>
+                `;
+            } else if (npc.id === 'merchant') {
+                choicesDiv.innerHTML = `
+                    <button onclick="transitionToEuropeBullies()" class="px-3 py-1.5 bg-blue-800 hover:bg-blue-700 text-white rounded text-xs font-semibold">Accept Cashier Job & Team up</button>
+                `;
+            } else if (npc.id === 'pooh_happy') {
+                choicesDiv.innerHTML = `
+                    <button onclick="triggerEnding()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-semibold">Embrace True Friendship (Win Game)</button>
+                `;
+            } else {
+                choicesDiv.innerHTML = `
+                    <button onclick="closeDialog()" class="px-3 py-1.5 bg-stone-700 hover:bg-stone-600 text-white rounded text-xs font-semibold">Close</button>
+                `;
+            }
+
+            dialogBox.classList.remove('hidden');
+        }
+
+        function closeDialog() {
+            document.getElementById('dialog-box').classList.add('hidden');
+        }
+
+        function resolveQuestPart1(choice) {
+            closeDialog();
+            if (choice === 'reject') {
+                game.pride += 30;
+                game.karma -= 20;
+                showToast("You rejected Pooh & Piglet! Pride increased, Karma dropped.");
+                updateHUD();
+                // Complete Quest 1, Unlock Quest 2
+                game.quests[0].status = 'completed';
+                game.quests[1].status = 'active';
+                updateQuestUI();
+
+                // Transition world to Europe
+                loadWorld('europe');
+            } else {
+                game.karma += 50;
+                showToast("You chose humility! True friendship secured instantly.");
+                triggerEnding();
+            }
+        }
+
+        function transitionToEuropeBullies() {
+            closeDialog();
+            showToast("5 Years in Europe... Bullies are testing your patience!");
+            // Add a bully event
+            game.quests[1].status = 'completed';
+            game.quests[2].status = 'active';
+            updateQuestUI();
+            loadWorld('reconciliation');
+        }
+
+        function triggerCombat(enemy) {
+            const damage = Math.floor(Math.random() * 20) + 10;
+            game.hp -= damage;
+            showToast(`Fought ${enemy.name}! Took ${damage} DMG from toxic remarks.`);
+            updateHUD();
+            if (game.hp <= 0) {
+                alert("You succumbed to toxic karma! Resetting HP...");
+                game.hp = 100;
+            }
+        }
+
+        function triggerEnding() {
+            closeDialog();
+            alert("🌟 LEGEND DAYS OF CHRISTOPHER ROBIN: TRUE ENDING 🌟\n\nYou learned the ultimate moral lesson: Be loyal and truthful to good friends, and never let pride destroy your destiny. Congratulations!");
+            location.reload();
+        }
+
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+            if (modalId === 'inventory-modal') updateInventoryUI();
+            if (modalId === 'quest-modal') updateQuestUI();
+            if (modalId === 'skills-modal') updateSkillsUI();
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-level').innerText = `L${game.level}`;
+            document.getElementById('hud-class').innerText = game.className;
+            document.getElementById('hud-hp-text').innerText = `${game.hp}/${game.maxHp}`;
+            document.getElementById('hud-hp-bar').style.width = `${(game.hp / game.maxHp) * 100}%`;
+            document.getElementById('hud-pride-text').innerText = `${game.pride}%`;
+            document.getElementById('hud-pride-bar').style.width = `${game.pride}%`;
+            document.getElementById('hud-karma-text').innerText = game.karma;
+            document.getElementById('hud-karma-bar').style.width = `${Math.min(100, game.karma)}%`;
+        }
+
+        function updateInventoryUI() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+            game.inventory.forEach(item => {
+                list.innerHTML += `
+                    <div class="bg-stone-800 border border-stone-700 rounded-xl p-3 flex items-center space-x-3">
+                        <span class="text-2xl">${item.icon}</span>
+                        <div>
+                            <h4 class="font-bold text-amber-300 text-sm">${item.name}</h4>
+                            <p class="text-xs text-stone-400">${item.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateQuestUI() {
+            const list = document.getElementById('quest-list');
+            list.innerHTML = '';
+            game.quests.forEach(q => {
+                let badgeColor = q.status === 'completed' ? 'bg-emerald-900 text-emerald-300 border-emerald-600' : q.status === 'active' ? 'bg-amber-900 text-amber-300 border-amber-600' : 'bg-stone-800 text-stone-400 border-stone-700';
+                list.innerHTML += `
+                    <div class="bg-stone-800/80 border border-stone-700 rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="font-bold text-amber-300 text-sm">${q.title}</h4>
+                            <span class="text-xs px-2 py-0.5 rounded border ${badgeColor}">${q.status.toUpperCase()}</span>
+                        </div>
+                        <p class="text-xs text-stone-300">${q.desc}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function updateSkillsUI() {
+            const list = document.getElementById('skills-list');
+            list.innerHTML = '';
+            game.skills.forEach(s => {
+                list.innerHTML += `
+                    <div class="bg-stone-800 border border-stone-700 rounded-xl p-4 flex justify-between items-center">
+                        <div>
+                            <h4 class="font-bold text-amber-300 text-sm">${s.name}</h4>
+                            <p class="text-xs text-stone-400">${s.desc}</p>
+                        </div>
+                        <button onclick="unlockSkill('${s.id}')" class="px-3 py-1 bg-${s.unlocked ? 'emerald-800' : 'amber-600'} text-white rounded text-xs font-semibold" ${s.unlocked ? 'disabled' : ''}>
+                            ${s.unlocked ? 'Unlocked' : 'Unlock'}
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function unlockSkill(id) {
+            const skill = game.skills.find(s => s.id === id);
+            if (skill && !skill.unlocked) {
+                skill.unlocked = true;
+                showToast(`Unlocked Skill: ${skill.name}!`);
+                updateSkillsUI();
+            }
+        }
+
+        function selectClass(className) {
+            game.className = className;
+            if (className === 'Mature Cashier') game.pride = 70;
+            if (className === 'Redeemed Friend') game.karma = 150;
+            document.getElementById('class-modal').classList.add('hidden');
+            updateHUD();
+            showToast(`Class selected: ${className}`);
+            loadWorld('wood');
+            gameLoop();
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('notification-toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
